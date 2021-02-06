@@ -1,0 +1,333 @@
+<head>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/algoliasearch/3/algoliasearch.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/autocomplete.js/0/autocomplete.jquery.min.js"></script>
+    <script src="https://unpkg.com/d3-interpolate-path/build/d3-interpolate-path.min.js"></script>
+    <style>
+        .algolia-autocomplete {
+            width: 200px;
+        }
+        .algolia-autocomplete .aa-input, .algolia-autocomplete .aa-hint {
+            width: 200px;
+        }
+        .algolia-autocomplete .aa-hint {
+         color: #999;
+        }
+        .algolia-autocomplete .aa-dropdown-menu {
+            width: 200px;
+            background-color: #fff;
+            border: 1px solid #999;
+            border-top: none;
+        }
+        .algolia-autocomplete .aa-dropdown-menu .aa-suggestion {
+            cursor: pointer;
+            padding: 5px 4px;
+        }
+        .algolia-autocomplete .aa-dropdown-menu .aa-suggestion.aa-cursor {
+            background-color: #B2D7FF;
+        }
+        .algolia-autocomplete .aa-dropdown-menu .aa-suggestion em {
+            font-weight: bold;
+            font-style: normal;
+        }
+    </style>
+</head>
+<body>
+    <input type="text" id="search-input" /><br><br>
+    <div style="width:100%" id="chart"></div>
+    <script>
+        d3.csv('nba_data.csv').then(function(data){
+            console.log('data');
+            console.log(data);
+
+            // clean the data -- there are a bunch of rows with missing data, filtering out rows where touch_time is 0 should fix it pretty well
+            const cleanData = data.filter((d)=>+d['touch_time'] !== 0);
+
+            console.log('cleaned data without rows missing data');
+            console.log(cleanData);
+
+            // get unique player names for search
+            let playersDict = {};
+            let players = []
+            for(let i=0;i<cleanData.length;i++){
+                if(!(cleanData[i]['name'] in playersDict)){
+                    playersDict[cleanData[i]['name']] = 1;
+                    players.push({'name':cleanData[i]['name']});
+                }
+            }
+
+            // search bar stuff
+            $('#search-input').autocomplete({ hint: false }, [
+                {
+                    source: (query, callback) => {
+                        if(query.length >= 3){
+                            let hits = players.filter((element,index,array)=>{
+                                const re = new RegExp(query,'i');
+                                return element.name.search(re) != -1;
+                            })
+                            callback(hits);
+                        }
+                        else {
+                            callback([]);
+                        }
+                    },
+                    displayKey: 'name',
+                    templates: {
+                        suggestion: function(suggestion) {
+                            return suggestion.name;
+                        }
+                    }
+                }
+            ]).on('autocomplete:selected', function(event, suggestion, dataset, context) {
+                updateChart(getRolling(cleanData.filter((d)=>d.name===suggestion.name),5),suggestion.name);
+            });
+
+            // Gets rolling average data - args are data and number of days for rolling average
+            const getRolling = function(d,span){
+                let finalData = [];
+                let sortedData = d.sort((a,b)=> (new Date(b.game_date) > new Date(a.game_date) ? 1: -1));
+                let uniqueDates = []
+                let datesDict = {};
+                for(let i=0;i<sortedData.length;i++){
+                    if(!(sortedData[i]['game_date'] in datesDict)){
+                        datesDict[sortedData[i]['game_date']] = 1;
+                        uniqueDates.push(sortedData[i]['game_date']);
+                    }
+                }
+               let outerList;
+               let innerList;
+               for(let i=0;i<uniqueDates.length;i++){
+                   outerList = [];
+                   rollingObject = {};
+                   for(let j=0;j<span;j++){
+                       if(i+j <= sortedData.length){
+                            innerList = sortedData.filter((d)=>d.game_date === uniqueDates[i+j]);
+                            outerList = outerList.concat(innerList);
+                       }
+                   }
+                   rollingObject['Date'] = uniqueDates[i];
+                   rollingObject['Game_Number'] = uniqueDates.length-i;
+                   rollingObject['FGPct'] = Number(d3.mean(outerList,(d)=>d.shot_made_flag))*100;
+                   rollingObject['Size'] = outerList.length;
+                   finalData.push(rollingObject);
+               }
+               console.log(finalData);
+               return finalData;
+            }
+
+            const width = 250;
+            const height = 250;
+            const margins = {top:50, bottom:50, left:50, right:10};
+            const chart_width = width - margins.left - margins.right;
+            const chart_height = height - margins.top - margins.bottom;
+
+            const initializeChart = function(){
+
+                const svg = d3.select("#chart").append("svg")
+                    .attr("width", 350)
+                    .attr("height", 350);
+
+                const chart = svg.append("g")
+                    .attr('id','svg')
+                    .attr("transform", `translate(${margins.left}, ${margins.top})`);
+
+                chart.append("g")
+                    .attr('id','x_axis');
+
+                chart.append("g")
+                    .attr('id','y_axis');
+
+                chart.append("text")
+                    .attr("id", "x_label");
+
+                chart.append("text")
+                    .attr("id", "y_label");
+
+                chart.append("text")
+                    .attr("id", "title");
+
+                chart.append('text')
+                    .attr('id','tooltip1');
+
+                chart.append('text')
+                    .attr('id','tooltip2');
+            }
+
+            const updateChart = function(d,name){
+
+                const chart = d3.select('#svg');
+
+                chart.select("#title")
+                    .attr("text-anchor", "middle")
+                    .attr("transform", `translate(${chart_width/1.5}, 0)`)
+                    .text(name);
+
+                const x_scale = d3.scaleLinear()
+                    .range([0, 250])
+                    .domain([d3.min(d,(d)=>d.Game_Number)-1,d3.max(d,(d)=>d.Game_Number)]);
+
+                const y_scale = d3.scaleLinear()
+                    .range([250,0])
+                    .domain([d3.min(d,(d)=>+d.FGPct)-5,d3.max(d,(d)=>+d.FGPct)+5]);
+
+                const x_axis = chart.select('#x_axis')
+                    .attr("transform", `translate(0, ${height})`)
+                    .call(d3.axisBottom(x_scale));
+
+                const y_axis = chart.select('#y_axis')
+                    .call(d3.axisLeft(y_scale));
+
+                const x_label = chart.select('#x_label')
+                    .attr("text-anchor", "middle")
+                    .attr("transform", `translate(${chart_width/2}, ${chart_height+ 3*margins.bottom})`)
+                    .text('Game Number');
+
+                const y_label = chart.select('#y_label')
+                    .attr("text-anchor", "middle")
+                    .attr("transform",`translate(${3*-margins.left/4}, ${chart_height})rotate(-90)`)
+                    .text('FG%');
+                
+
+                const line = d3.line()
+                    .x((d) => {
+                        return x_scale(d['Game_Number']);
+                    })
+                    .y((d) => y_scale(d['FGPct']));
+
+                    
+                // Add Line
+                    
+                let lines = chart.selectAll(".line")
+                    .data([d]);
+
+                lines.exit().remove();
+
+                let new_lines = lines
+                    .enter()
+                    .append("path")
+                    .attr("class","line")
+                    .attr("d", (d)=>{
+                        return line(d);
+                    })
+                    .style("stroke", "red")
+                    .style("fill","none")
+                    .style("stroke-width", 2)
+                    .style("opacity", 1);
+
+                lines = lines.merge(new_lines);
+
+                lines.transition()
+                    .duration(1000)
+                    .attrTween('d', function (d) {
+                        var previous = lines.attr('d');
+                        var current = line(d);
+                        return d3.interpolatePath(previous, current);
+                      });
+                
+                // Add Circles for Tooltip action
+
+                let circles = chart.selectAll(".circle")
+                    .data(d);
+        
+                circles.exit().remove();
+        
+                let new_circles = circles
+                    .enter()
+                    .append("circle")
+                    .attr("class", "circle")
+                    .attr("cx", (d,i)=> {
+                    return x_scale(d['Game_Number']);
+                    })
+                    .attr("cy", (d) => y_scale(d['FGPct']))
+                    .attr("r", 3)
+                    .style("fill", "red")
+                    .style("opacity", 0);   // secret dots
+        
+                circles = circles.merge(new_circles);
+        
+                circles.transition()
+                    .duration(1000)
+                    .attr("cx",d=>x_scale(d['Game_Number']))
+                    .attr("cy",d=>y_scale(d['FGPct']));
+
+
+                // Line Tooltip Stuff
+
+                let tooltip1 = chart.select('#tooltip1')
+                    .attr('x',180)
+                    .attr('y',10)
+                    .text('Date: ');
+
+                let tooltip2 = chart.select('#tooltip2')
+                    .attr('x',180)
+                    .attr('y',25)
+                    .text('FG: ');
+
+                var mouseG = chart.append("g")
+                    .attr("class", "mouse-over-effects");
+
+                mouseG.append("path") // this is the black vertical line to follow mouse
+                    .attr("class", "mouse-line")
+                    .style("stroke", "red")
+                    .style("stroke-width", "1px")
+                    .style("opacity", "0");
+                    
+                mouseG.append('svg:rect') // append a rect to catch mouse movements on canvas
+                    .attr('width', width) // can't catch mouse events on a g element
+                    .attr('height', height)
+                    .attr('fill', 'none')
+                    .attr('pointer-events', 'all')
+                    .on('mouseout', function() { // on mouse out hide line, circles and text
+                        d3.select(".mouse-line")
+                        .style("opacity", "0");
+                        d3.selectAll(".mouse-per-line circle")
+                        .style("opacity", "0");
+                        d3.selectAll(".mouse-per-line text")
+                        .style("opacity", "0");
+                    })
+                    .on('mouseover', function() { // on mouse in show line, circles and text
+                        d3.select(".mouse-line")
+                        .style("opacity", "1");
+                        // d3.selectAll(".mouse-per-line circle")
+                        // .style("opacity", "1");
+                        // d3.selectAll(".mouse-per-line text")
+                        // .style("opacity", "1");
+                    })
+                    .on('mousemove', function() { // mouse moving over canvas
+                        var mouse = d3.mouse(this);
+                        tooltip1.text('Date: '+(d.filter((d)=>d.Game_Number === Math.round(x_scale.invert(mouse[0])))[0]['Date']));
+                        tooltip2.text('FG: '+Math.round(d.filter((d)=>d.Game_Number === Math.round(x_scale.invert(mouse[0])))[0]['FGPct'])+'%');
+                        chart.selectAll('.circle')
+                            .style('opacity',function(d){
+                                if(d.Game_Number === Math.round(x_scale.invert(mouse[0]))){
+                                    return 1;
+                                }
+                                else{
+                                    return 0;
+                                }
+                            });
+
+                        d3.select(".mouse-line")
+                            .attr("d", function() {
+                                var d = "M" + mouse[0] + "," + height;
+                                d += " " + mouse[0] + "," + 0;
+                                return d;
+                            });
+                        })
+                    .on('mouseout',function(){
+                        tooltip1.text('Date: ');
+                        tooltip2.text('FG: ');
+                        chart.selectAll('.circle')
+                            .style('opacity',0);
+                        d3.select(".mouse-line")
+                            .attr("d", '');
+                    });
+            }
+
+            initializeChart();
+            updateChart(getRolling(cleanData.filter((d)=>d.name==='Kyle Lowry'),5),'Kyle Lowry');
+
+        });
+    </script>
+</body>
