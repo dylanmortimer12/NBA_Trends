@@ -35,20 +35,64 @@
             font-weight: bold;
             font-style: normal;
         }
-        #slider-range {
+        #slider-range-distance {
+            width: 200px;
+        }
+        #slider-range-dribbles {
+            width: 200px;
+        }
+        #slider-range-time {
             width: 200px;
         }
         #container {
-            width: 70%;
+            width: 95%;
             margin: auto;
+            text-align: center;
+        }
+        .filterButton {
+            list-style-type:none;
+            display: inline;
+            padding: 10px;
+            cursor: pointer;
+            background-color: white;
+            color: black;
+        }
+        .selected {
+            background-color: black;
+            color: white;
+        }
+        body {
+            font-family: Calibri;
         }
     </style>
 </head>
 <body>
     <div id='container'>
-        <input type="text" id="search-input" /><br><br>
-        <text id='shotDistance' >Shot Distance: </text>
-        <div id="slider-range"></div>
+        <h2>Jump Shot FG% 5 Day Rolling Average Plot - 2015/2016</h2>
+        <p>The following Visualization shows Jump Shot data for the 2015/2016 NBA season. The data was taken from NBAsavant.com. A lot of the data had missing values so I filtered out rows that were missing values like dribbles, touch time, and shot distance. The result is definitely an incomplete dataset and not a very actionable visualization. The point of this project, however, is to demonstrate my ability to develop interactive visualizations. This kind of application could be used to visualize any kind of more complete and useful dataset with all different kinds of interactive filters.</p>
+        <div style="width:100%;display:inline-flex; justify-content:center">
+            <text style="padding-right:10px; padding-bottom:10px;">Search Name </text> <input type="text" id="search-input" />
+        </div>
+        <div id='filters' style="display:inline-flex; width:90%; justify-content:space-evenly">
+            <div style="width:20%;display:block;">
+                <text style="padding-right:15px; padding-bottom:10px;" id='shotDistance' >Shot Distance: </text>
+                <div id="slider-range-distance"></div>
+            </div>
+            <div style="width:20%;display:block;">
+                <text style="padding-right:15px;" id='dribbles' >Dribbles: </text>
+                <div id="slider-range-dribbles"></div>
+            </div>
+            <div style="width:20%;display:block;">
+                <text style="padding-right:15px;" id='time' >Touch Time: </text>
+                <div id="slider-range-time"></div>
+            </div>
+            <div id='shotButtons' style="width:20%;">
+                <ul>
+                    <li class="filterButton selected" id="2pt" data-col='2PT Field Goal'>2 Pt</li>
+                    <li class="filterButton selected" id='3pt' data-col='3PT Field Goal'>3 Pt</li>
+                </ul>
+            </div>
+        </div>
         <div style="width:70%; margin:auto" id="chart"></div>
     </div>
     <script>
@@ -57,7 +101,7 @@
             console.log(data);
 
             // clean the data -- there are a bunch of rows with missing data, filtering out rows where touch_time is 0 should fix it pretty well
-            const cleanData = data.filter((d)=>+d['touch_time'] !== 0);
+            const cleanData = data.filter((d)=>+d['touch_time'] !== 0 && d.action_type === 'Jump Shot');
 
             console.log('cleaned data without rows missing data');
             console.log(cleanData);
@@ -72,22 +116,71 @@
                 }
             }
 
+            // Filter Buttons
+
+            $('.filterButton').on('click',function(){
+                if($(this).hasClass('selected')){
+                    $(this).removeClass('selected');
+                }
+                else{
+                    $(this).addClass('selected');
+                }
+                applyFilters();
+            });
+
             // Slider
 
-            $( "#slider-range" ).slider({
+            $( "#slider-range-distance" ).slider({
                 range: true,
                 min: d3.min(cleanData,(d)=>+d.shot_distance),
                 max: d3.max(cleanData,(d)=>+d.shot_distance),
                 values: [d3.min(cleanData,(d)=>+d.shot_distance),d3.max(cleanData,(d)=>+d.shot_distance)],
                 slide: function( event, ui ) {
-                    $('#slider-range').attr('data-min',ui.values[0]);
-                    $('#slider-range').attr('data-max',ui.values[1]);
+                    $('#slider-range-distance').attr('data-min',ui.values[0]);
+                    $('#slider-range-distance').attr('data-max',ui.values[1]);
                     $('#shotDistance').text('Shot Distance: ' + ui.values[0] + ' ft - ' + ui.values[1] + ' ft');
                     applyFilters();
                 }
             });
 
+            $('#slider-range-distance').attr('data-min',d3.min(cleanData,(d)=>+d.shot_distance));
+            $('#slider-range-distance').attr('data-max',d3.max(cleanData,(d)=>+d.shot_distance));
+
+            $( "#slider-range-dribbles" ).slider({
+                range: true,
+                min: d3.min(cleanData,(d)=>+d.dribbles),
+                max: d3.max(cleanData,(d)=>+d.dribbles),
+                values: [d3.min(cleanData,(d)=>+d.dribbles),d3.max(cleanData,(d)=>+d.dribbles)],
+                slide: function( event, ui ) {
+                    $('#slider-range-dribbles').attr('data-min',ui.values[0]);
+                    $('#slider-range-dribbles').attr('data-max',ui.values[1]);
+                    $('#dribbles').text('Dribbles: ' + ui.values[0] + ' - ' + ui.values[1]);
+                    applyFilters();
+                }
+            });
+
+            $('#slider-range-dribbles').attr('data-min',d3.min(cleanData,(d)=>+d.dribbles));
+            $('#slider-range-dribbles').attr('data-max',d3.max(cleanData,(d)=>+d.dribbles));
+
+            $( "#slider-range-time" ).slider({
+                range: true,
+                min: d3.min(cleanData,(d)=>+d.touch_time),
+                max: d3.max(cleanData,(d)=>+d.touch_time),
+                values: [d3.min(cleanData,(d)=>+d.touch_time),d3.max(cleanData,(d)=>+d.touch_time)],
+                slide: function( event, ui ) {
+                    $('#slider-range-time').attr('data-min',ui.values[0]);
+                    $('#slider-range-time').attr('data-max',ui.values[1]);
+                    $('#time').text('Touch Time: ' + ui.values[0] + ' - ' + ui.values[1]);
+                    applyFilters();
+                }
+            });
+
+            $('#slider-range-time').attr('data-min',d3.min(cleanData,(d)=>+d.touch_time));
+            $('#slider-range-time').attr('data-max',d3.max(cleanData,(d)=>+d.touch_time));
+
             $('#shotDistance').text('Shot Distance: ' + d3.min(cleanData,(d)=>+d.shot_distance) + ' ft - ' + d3.max(cleanData,(d)=>+d.shot_distance) + ' ft');
+            $('#dribbles').text('Dribbles: ' + d3.min(cleanData,(d)=>+d.dribbles) + ' - ' + d3.max(cleanData,(d)=>+d.dribbles));
+            $('#time').text('Touch Time: ' + d3.min(cleanData,(d)=>+d.touch_time) + ' - ' + d3.max(cleanData,(d)=>+d.touch_time));
 
             // Filter Data Function
 
@@ -99,9 +192,30 @@
                 let filteredData = JSON.parse(JSON.stringify(cleanData.filter((d)=>d.name === name)));
 
                 // shot distance slider
-                const sliderMin = $('#slider-range').attr('data-min');
-                const sliderMax = $('#slider-range').attr('data-max');
+                const sliderMin = $('#slider-range-distance').attr('data-min');
+                const sliderMax = $('#slider-range-distance').attr('data-max');
+
+                // dribble slider
+                const dribbleMin = $('#slider-range-dribbles').attr('data-min');
+                const dribbleMax = $('#slider-range-dribbles').attr('data-max');
+
+                // Touch Time Slider
+                const touchMin = $('#slider-range-time').attr('data-min');
+                const touchMax = $('#slider-range-time').attr('data-max');
+
+                // 2pt vs 3pt buttons
+                const fgTypes = [];
+                if($('#2pt').hasClass('selected')){
+                    fgTypes.push($('#2pt').attr('data-col'));
+                }
+                if($('#3pt').hasClass('selected')){
+                    fgTypes.push($('#3pt').attr('data-col'));
+                }
+
                 filteredData = filteredData.filter((d)=>+d.shot_distance >= parseInt(sliderMin) && +d.shot_distance <= parseInt(sliderMax));
+                filteredData = filteredData.filter((d)=>+d.dribbles >= parseInt(dribbleMin) && +d.dribbles <= parseInt(dribbleMax));
+                filteredData = filteredData.filter((d)=>+d.touch_time >= parseInt(touchMin) && +d.touch_time <= parseInt(touchMax));
+                filteredData = filteredData.filter((d)=> fgTypes.includes(d.shot_type));
                 updateChart(getRolling(filteredData,5),name);
             }
 
