@@ -278,8 +278,8 @@
                return finalData;
             }
 
-            const width = 250;
-            const height = 250;
+            const width = 350;
+            const height = 350;
             const margins = {top:50, bottom:50, left:50, right:10};
             const chart_width = width - margins.left - margins.right;
             const chart_height = height - margins.top - margins.bottom;
@@ -287,8 +287,8 @@
             const initializeChart = function(){
 
                 const svg = d3.select("#chart").append("svg")
-                    .attr("width", 350)
-                    .attr("height", 350);
+                    .attr("width", 450)
+                    .attr("height", 450);
 
                 const chart = svg.append("g")
                     .attr('id','svg')
@@ -326,11 +326,11 @@
                     .text(name);
 
                 const x_scale = d3.scaleLinear()
-                    .range([0, 250])
+                    .range([0, 350])
                     .domain([d3.min(d,(d)=>d.Game_Number)-1,d3.max(d,(d)=>d.Game_Number)]);
 
                 const y_scale = d3.scaleLinear()
-                    .range([250,0])
+                    .range([350,0])
                     .domain([d3.min(d,(d)=>+d.FGPct)-5,d3.max(d,(d)=>+d.FGPct)+5]);
 
                 const x_axis = chart.select('#x_axis')
@@ -417,12 +417,12 @@
                 // Line Tooltip Stuff
 
                 let tooltip1 = chart.select('#tooltip1')
-                    .attr('x',180)
+                    .attr('x',280)
                     .attr('y',10)
                     .text('Date: ');
 
                 let tooltip2 = chart.select('#tooltip2')
-                    .attr('x',180)
+                    .attr('x',280)
                     .attr('y',25)
                     .text('FG: ');
 
