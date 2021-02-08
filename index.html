@@ -1,9 +1,13 @@
 <head>
     <script src="https://d3js.org/d3.v5.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://unpkg.com/d3-interpolate-path/build/d3-interpolate-path.min.js"></script>
+    <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
     <script src="https://cdn.jsdelivr.net/algoliasearch/3/algoliasearch.min.js"></script>
     <script src="https://cdn.jsdelivr.net/autocomplete.js/0/autocomplete.jquery.min.js"></script>
-    <script src="https://unpkg.com/d3-interpolate-path/build/d3-interpolate-path.min.js"></script>
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <link rel="stylesheet" href="/resources/demos/style.css">
     <style>
         .algolia-autocomplete {
             width: 200px;
@@ -31,11 +35,22 @@
             font-weight: bold;
             font-style: normal;
         }
+        #slider-range {
+            width: 200px;
+        }
+        #container {
+            width: 70%;
+            margin: auto;
+        }
     </style>
 </head>
 <body>
-    <input type="text" id="search-input" /><br><br>
-    <div style="width:100%" id="chart"></div>
+    <div id='container'>
+        <input type="text" id="search-input" /><br><br>
+        <text id='shotDistance' >Shot Distance: </text>
+        <div id="slider-range"></div>
+        <div style="width:70%; margin:auto" id="chart"></div>
+    </div>
     <script>
         d3.csv('nba_data.csv').then(function(data){
             console.log('data');
@@ -55,6 +70,39 @@
                     playersDict[cleanData[i]['name']] = 1;
                     players.push({'name':cleanData[i]['name']});
                 }
+            }
+
+            // Slider
+
+            $( "#slider-range" ).slider({
+                range: true,
+                min: d3.min(cleanData,(d)=>+d.shot_distance),
+                max: d3.max(cleanData,(d)=>+d.shot_distance),
+                values: [d3.min(cleanData,(d)=>+d.shot_distance),d3.max(cleanData,(d)=>+d.shot_distance)],
+                slide: function( event, ui ) {
+                    $('#slider-range').attr('data-min',ui.values[0]);
+                    $('#slider-range').attr('data-max',ui.values[1]);
+                    $('#shotDistance').text('Shot Distance: ' + ui.values[0] + ' ft - ' + ui.values[1] + ' ft');
+                    applyFilters();
+                }
+            });
+
+            $('#shotDistance').text('Shot Distance: ' + d3.min(cleanData,(d)=>+d.shot_distance) + ' ft - ' + d3.max(cleanData,(d)=>+d.shot_distance) + ' ft');
+
+            // Filter Data Function
+
+            const applyFilters = function(){
+                
+                // get name
+                const name = (d3.select('#title').text());
+
+                let filteredData = JSON.parse(JSON.stringify(cleanData.filter((d)=>d.name === name)));
+
+                // shot distance slider
+                const sliderMin = $('#slider-range').attr('data-min');
+                const sliderMax = $('#slider-range').attr('data-max');
+                filteredData = filteredData.filter((d)=>+d.shot_distance >= parseInt(sliderMin) && +d.shot_distance <= parseInt(sliderMax));
+                updateChart(getRolling(filteredData,5),name);
             }
 
             // search bar stuff
@@ -327,7 +375,6 @@
 
             initializeChart();
             updateChart(getRolling(cleanData.filter((d)=>d.name==='Kyle Lowry'),5),'Kyle Lowry');
-
         });
     </script>
 </body>
