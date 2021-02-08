@@ -68,8 +68,10 @@
 </head>
 <body>
     <div id='container'>
-        <h2>Jump Shot FG% 5 Day Rolling Average Plot - 2015/2016</h2>
-        <p>The following Visualization shows Jump Shot data for the 2015/2016 NBA season. The data was taken from NBAsavant.com. A lot of the data had missing values so I filtered out rows that were missing values like dribbles, touch time, and shot distance. The result is definitely an incomplete dataset and not a very actionable visualization. The point of this project, however, is to demonstrate my ability to develop interactive visualizations. This kind of application could be used to visualize any kind of more complete and useful dataset with all different kinds of interactive filters.</p>
+        <h2>Jump Shot FG% 5-Day Rolling Average Plot - 2015/2016</h2>
+        <p>The following Visualization shows Jump Shot data for the 2015/2016 NBA season. The data was taken from NBAsavant.com. A lot of the data had missing values so I filtered out rows that were missing values like dribbles, touch time, and shot distance. 
+            The result is definitely an incomplete dataset and not a very actionable visualization. The point of this project, however, was to demonstrate my ability to develop interactive visualizations. 
+            This kind of application could be used to visualize any kind of more complete and useful dataset with all different kinds of interactive filters. This application was developed with D3.js</p>
         <div style="width:100%;display:inline-flex; justify-content:center">
             <text style="padding-right:10px; padding-bottom:10px;">Search Name </text> <input type="text" id="search-input" />
         </div>
@@ -271,6 +273,7 @@
                    rollingObject['Date'] = uniqueDates[i];
                    rollingObject['Game_Number'] = uniqueDates.length-i;
                    rollingObject['FGPct'] = Number(d3.mean(outerList,(d)=>d.shot_made_flag))*100;
+                   rollingObject['FGMade'] = d3.sum(outerList,(d)=>d.shot_made_flag);
                    rollingObject['Size'] = outerList.length;
                    finalData.push(rollingObject);
                }
@@ -459,7 +462,7 @@
                     .on('mousemove', function() { // mouse moving over canvas
                         var mouse = d3.mouse(this);
                         tooltip1.text('Date: '+(d.filter((d)=>d.Game_Number === Math.round(x_scale.invert(mouse[0])))[0]['Date']));
-                        tooltip2.text('FG: '+Math.round(d.filter((d)=>d.Game_Number === Math.round(x_scale.invert(mouse[0])))[0]['FGPct'])+'%');
+                        tooltip2.text('FG: '+Math.round(d.filter((d)=>d.Game_Number === Math.round(x_scale.invert(mouse[0])))[0]['FGPct'])+'%, ' + d.filter((d)=>d.Game_Number === Math.round(x_scale.invert(mouse[0])))[0]['FGMade'] + ' of ' + d.filter((d)=>d.Game_Number === Math.round(x_scale.invert(mouse[0])))[0]['Size']);
                         chart.selectAll('.circle')
                             .style('opacity',function(d){
                                 if(d.Game_Number === Math.round(x_scale.invert(mouse[0]))){
